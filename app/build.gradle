@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// Optional plugin signing: this app declares android:sharedUserId="com.termux", so it has to be
+// signed with the same certificate as the installed Termux app. When a Termux build is re-signed
+// with the public GNU Emacs build key (java/emacs.keystore in the Emacs sources, see
+// https://github.com/ShineBreaker/emacs-mobile), point local.properties at that keystore and the
+// app is signed with it too. Without that entry the upstream debug test key is used as before.
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+def emacsKeystorePath = localProperties.getProperty('emacs.keystore.path')
+def emacsKeystore = emacsKeystorePath ? file(emacsKeystorePath) : null
+def emacsKeystoreAlias = localProperties.getProperty('emacs.keystore.alias', 'emacs keystore')
+def emacsKeystorePassword = localProperties.getProperty('emacs.keystore.password', 'emacs1')
+
 android {
     namespace "com.termux.window"
 
@@ -29,6 +44,17 @@ android {
             storePassword 'xrj45yWGLbsO7W0v'
             keyPassword 'xrj45yWGLbsO7W0v'
         }
+
+        // Public GNU Emacs build key, used when local.properties points at it (see the top of this
+        // file). Same certificate as the re-signed Termux app, required for the shared UID.
+        if (emacsKeystore != null) {
+            emacs {
+                storeFile emacsKeystore
+                storePassword emacsKeystorePassword
+                keyAlias emacsKeystoreAlias
+                keyPassword emacsKeystorePassword
+            }
+        }
     }
 
     buildTypes {
@@ -36,10 +62,11 @@ android {
             minifyEnabled true
             shrinkResources false // Reproducible builds
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (emacsKeystore != null) signingConfig signingConfigs.emacs
         }
 
         debug {
-            signingConfig signingConfigs.debug
+            signingConfig emacsKeystore != null ? signingConfigs.emacs : signingConfigs.debug
             zipAlignEnabled true
         }
     }
