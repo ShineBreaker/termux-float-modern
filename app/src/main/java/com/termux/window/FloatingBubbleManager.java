@@ -98,6 +98,7 @@ public class FloatingBubbleManager {
         TermuxFloatView termuxFloatView = getTermuxFloatView();
         termuxFloatView.setBackground(mOriginalFloatViewBackground);
         termuxFloatView.setClipToOutline(false);
+        termuxFloatView.applyTerminalViewShape();
 
         ViewGroup windowControls = termuxFloatView.findViewById(R.id.window_controls);
         windowControls.setVisibility(View.VISIBLE);

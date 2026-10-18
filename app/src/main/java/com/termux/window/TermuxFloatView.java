@@ -3,6 +3,7 @@ package com.termux.window;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Outline;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.os.Build;
@@ -13,8 +14,9 @@ import android.view.ScaleGestureDetector;
 import android.view.ScaleGestureDetector.OnScaleGestureListener;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import com.termux.shared.logger.Logger;
@@ -140,19 +142,34 @@ public class TermuxFloatView extends LinearLayout {
         mTermuxFloatViewClient = new TermuxFloatViewClient(this, mTermuxFloatSessionClient);
         mTerminalView.setTerminalViewClient(mTermuxFloatViewClient);
         mTermuxFloatViewClient.initFloatView();
+        applyTerminalViewShape();
 
         mFloatingBubbleManager = new FloatingBubbleManager(this);
         initWindowControls();
+    }
+
+    /**
+     * Clip the terminal view to the rounded window shape of the floating window.
+     */
+    void applyTerminalViewShape() {
+        final float cornerRadius = getResources().getDimension(R.dimen.floating_window_corner_radius);
+        mTerminalView.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), cornerRadius);
+            }
+        });
+        mTerminalView.setClipToOutline(true);
     }
 
     private void initWindowControls() {
         mWindowControls = findViewById(R.id.window_controls);
         mWindowControls.setOnClickListener(v -> changeFocus(true));
 
-        Button minimizeButton = findViewById(R.id.minimize_button);
+        ImageButton minimizeButton = findViewById(R.id.minimize_button);
         minimizeButton.setOnClickListener(v -> mFloatingBubbleManager.toggleBubble());
 
-        Button exitButton = findViewById(R.id.exit_button);
+        ImageButton exitButton = findViewById(R.id.exit_button);
         exitButton.setOnClickListener(v -> exit());
     }
 

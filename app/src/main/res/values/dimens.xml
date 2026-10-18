@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="bubble_outline_stroke_width">1dp</dimen>
+
+    <!-- Floating window shape and chrome (Material Design 3) -->
+    <dimen name="floating_window_border_width">1dp</dimen>
+    <dimen name="floating_window_corner_radius">16dp</dimen>
+    <dimen name="floating_window_controls_height">44dp</dimen>
+    <dimen name="floating_window_controls_horizontal_padding">4dp</dimen>
+    <dimen name="icon_button_size">40dp</dimen>
 </resources>

@@ -11,6 +11,10 @@
 	<string name="initial_instruction_toast">Long press on window to move or resize\n\nDouble tap and drag finger up or down to change font size</string>
 	<string name="after_long_press">Drag to position and pinch to resize</string>
 
+    <string name="window_action_minimize">Collapse to bubble</string>
+    <string name="window_action_exit">Exit window</string>
+
+    <string name="draw_overlay_permission_title">Overlay permission required</string>
     <string name="draw_overlay_permission_explanation">This app requires permission to draw overlays.</string>
     <string name="grant_permission">Grant permission</string>
 

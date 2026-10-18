@@ -2,8 +2,8 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="oval">
-            <solid android:color="@android:color/black" />
-            <stroke android:color="@android:color/white"
+            <solid android:color="@color/md_theme_dark_surface_container" />
+            <stroke android:color="@color/md_theme_dark_outline_variant"
                 android:width="@dimen/bubble_outline_stroke_width" />
         </shape>
     </item>

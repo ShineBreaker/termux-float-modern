@@ -1,20 +1,54 @@
 <resources>
 
     <!--
-        Base application theme, dependent on API level. This theme is replaced
-        by AppBaseTheme from res/values-vXX/styles.xml on newer devices.
+        Material Design 3 (dark) theme. The app is chrome for a terminal window, so the dark
+        baseline scheme is used for both the overlay window and the permission activity.
     -->
-    <style name="AppBaseTheme" parent="android:Theme.Light">
-        <!--
-            Theme customizations available in newer API levels can go in
-            res/values-vXX/styles.xml, while customizations related to
-            backward-compatibility can go here.
-        -->
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/md_theme_dark_surface</item>
+        <item name="android:colorPrimary">@color/md_theme_dark_primary</item>
+        <item name="android:colorPrimaryDark">@color/md_theme_dark_surface_container</item>
+        <item name="android:colorAccent">@color/md_theme_dark_primary</item>
+        <item name="android:statusBarColor">@color/md_theme_dark_surface</item>
+        <item name="android:textColorPrimary">@color/md_theme_dark_on_surface</item>
+        <item name="android:textColorSecondary">@color/md_theme_dark_on_surface_variant</item>
     </style>
 
-    <!-- Application theme. -->
-    <style name="AppTheme" parent="AppBaseTheme">
-        <!-- All customizations that are NOT specific to a particular API-level can go here. -->
+    <!-- Type scale: https://m3.material.io/styles/typography/type-scale-tokens -->
+    <style name="TextAppearance.TermuxFloat.HeadlineSmall" parent="@android:style/TextAppearance.Material.Headline">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/md_theme_dark_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.TermuxFloat.BodyMedium" parent="@android:style/TextAppearance.Material.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/md_theme_dark_on_surface_variant</item>
+    </style>
+
+    <!--
+        Icon button: 40dp touch target with a 24dp icon and a circular state layer,
+        per the Material Design 3 icon button spec.
+    -->
+    <style name="Widget.TermuxFloat.IconButton" parent="@android:style/Widget.Material.ImageButton">
+        <item name="android:layout_width">@dimen/icon_button_size</item>
+        <item name="android:layout_height">@dimen/icon_button_size</item>
+        <item name="android:background">@drawable/icon_button_ripple</item>
+        <item name="android:padding">8dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:tint">@color/md_theme_dark_on_surface_variant</item>
+    </style>
+
+    <!-- Filled button, per the Material Design 3 common button spec -->
+    <style name="Widget.TermuxFloat.Button" parent="@android:style/Widget.Material.Button">
+        <item name="android:background">@drawable/filled_button_background</item>
+        <item name="android:textColor">@color/md_theme_dark_on_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:minWidth">64dp</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:letterSpacing">0.01</item>
     </style>
 
 </resources>
