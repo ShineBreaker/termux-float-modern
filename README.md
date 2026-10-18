@@ -22,7 +22,7 @@ A [Termux] plugin app to show the terminal in a floating terminal window.
 
 ### Installation
 
-Latest version is `v0.20.0`.
+Latest version is `v0.20.1`.
 
 **Check [`termux-app` Installation](https://github.com/termux/termux-app#Installation) for details before reading forward.**
 

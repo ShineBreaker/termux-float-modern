@@ -8,7 +8,8 @@ import re
 import sys
 
 RES_DIR = pathlib.Path(__file__).resolve().parent.parent / "app" / "src" / "main" / "res"
-STRING_NAME_RE = re.compile(r'<string name="([^"]+)"')
+# Both <string> and <plurals> carry a name that must exist in every translation.
+STRING_NAME_RE = re.compile(r'<(?:string|plurals) name="([^"]+)"')
 
 
 def string_names(path):

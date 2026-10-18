@@ -32,7 +32,6 @@
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginTop="24dp"
-            android:onClick="onOkButton"
             android:text="@string/grant_permission" />
     </LinearLayout>
 

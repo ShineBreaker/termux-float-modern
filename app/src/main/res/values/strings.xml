@@ -23,7 +23,10 @@
     <string name="sessions_dialog_create">Create</string>
     <string name="sessions_dialog_open_in_termux">Open in Termux</string>
     <string name="sessions_dialog_open_in_termux_failed">Could not hand the session over to Termux. Set allow-external-apps=true in ~/.termux/termux.properties and try again.</string>
-    <string name="session_detail_windows">%1$d windows</string>
+    <plurals name="session_detail_windows">
+        <item quantity="one">%1$d window</item>
+        <item quantity="other">%1$d windows</item>
+    </plurals>
     <string name="session_detail_attached">attached</string>
 
     <string name="draw_overlay_permission_title">Overlay permission required</string>

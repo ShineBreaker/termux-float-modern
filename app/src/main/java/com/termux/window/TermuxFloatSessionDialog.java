@@ -142,7 +142,8 @@ class TermuxFloatSessionDialog {
     }
 
     private CharSequence buildDetail(@NonNull TmuxUtils.TmuxSession session) {
-        String windows = mService.getString(R.string.session_detail_windows, session.windows);
+        String windows = mService.getResources().getQuantityString(
+                R.plurals.session_detail_windows, session.windows, session.windows);
         if (!session.attached) return windows;
         return windows + " · " + mService.getString(R.string.session_detail_attached);
     }

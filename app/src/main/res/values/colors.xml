@@ -12,9 +12,7 @@
     <color name="md_theme_dark_surface_container">#FF211F26</color>
     <color name="md_theme_dark_surface_container_high">#FF2B2930</color>
     <color name="md_theme_dark_on_surface_variant">#FFCAC4D0</color>
-    <color name="md_theme_dark_outline">#FF938F99</color>
     <color name="md_theme_dark_outline_variant">#FF49454F</color>
-    <color name="md_theme_dark_error">#FFF2B8B5</color>
 
     <!-- State layer: on-surface @ 12% opacity, used for ripple/state feedback -->
     <color name="md_theme_dark_state_layer">#1FFFFFFF</color>
