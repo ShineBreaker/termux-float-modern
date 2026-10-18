@@ -22,7 +22,7 @@ A [Termux] plugin app to show the terminal in a floating terminal window.
 
 ### Installation
 
-Latest version is `v0.18.0`.
+Latest version is `v0.19.0`.
 
 **Check [`termux-app` Installation](https://github.com/termux/termux-app#Installation) for details before reading forward.**
 
@@ -73,6 +73,7 @@ nano ~/.termux/termux.float.properties
 This fork (`termux-float-modern`) builds on upstream `Termux:Float`. In addition to the upstream features documented below, it provides:
 
 - **Material Design 3 interface** — the floating window chrome, the overlay permission screen and the window background use the Material Design 3 baseline dark scheme: 16dp rounded window corners, a surface container title bar, 40dp icon buttons with circular state layers, the MD3 type scale and MD3 colors for the bubble outline.
+- **Localized UI** — every user visible string is a translatable resource and Simplified Chinese (`zh-rCN`) is included. Run `scripts/check-translations.py` after adding strings so translations cannot drift out of sync.
 ##
 
 

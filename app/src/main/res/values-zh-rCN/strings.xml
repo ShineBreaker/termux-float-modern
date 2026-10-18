@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Termux:Float</string>
+
+    <string name="initial_instruction_toast">长按悬浮窗可移动或缩放\n\n双击并上下拖动手指可调整字体大小</string>
+    <string name="after_long_press">拖动以移动，双指捏合以缩放</string>
+
+    <string name="window_action_minimize">收起为气泡</string>
+    <string name="window_action_exit">退出悬浮窗</string>
+
+    <string name="draw_overlay_permission_title">需要悬浮窗权限</string>
+    <string name="draw_overlay_permission_explanation">本应用需要悬浮窗权限才能在其他应用上层显示。</string>
+    <string name="grant_permission">授予权限</string>
+
+    <string name="notification_action_exit">退出</string>
+    <string name="notification_message_visible">点击隐藏悬浮窗。</string>
+    <string name="notification_message_hidden">点击显示悬浮窗。</string>
+</resources>
