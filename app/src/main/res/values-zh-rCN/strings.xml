@@ -7,6 +7,18 @@
 
     <string name="window_action_minimize">收起为气泡</string>
     <string name="window_action_exit">退出悬浮窗</string>
+    <string name="window_action_sessions">会话</string>
+
+    <string name="sessions_dialog_title">会话</string>
+    <string name="sessions_dialog_hint">会话通过 tmux 与 Termux 主程序共享：在此处打开某个会话后，可在 Termux 中打开同一会话，两边实时同步。</string>
+    <string name="sessions_dialog_tmux_missing">Termux 中未安装 tmux，无法共享会话。请先执行 pkg install tmux，然后重新打开本对话框。</string>
+    <string name="sessions_dialog_empty">还没有 tmux 会话，可在下方新建。</string>
+    <string name="sessions_dialog_new_session_hint">新会话名称</string>
+    <string name="sessions_dialog_create">创建</string>
+    <string name="sessions_dialog_open_in_termux">在 Termux 中打开</string>
+    <string name="sessions_dialog_open_in_termux_failed">无法将会话交给 Termux 打开，请在 ~/.termux/termux.properties 中设置 allow-external-apps=true 后重试。</string>
+    <string name="session_detail_windows">%1$d 个窗口</string>
+    <string name="session_detail_attached">已连接</string>
 
     <string name="draw_overlay_permission_title">需要悬浮窗权限</string>
     <string name="draw_overlay_permission_explanation">本应用需要悬浮窗权限才能在其他应用上层显示。</string>

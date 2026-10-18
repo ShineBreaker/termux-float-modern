@@ -22,7 +22,7 @@ A [Termux] plugin app to show the terminal in a floating terminal window.
 
 ### Installation
 
-Latest version is `v0.19.0`.
+Latest version is `v0.20.0`.
 
 **Check [`termux-app` Installation](https://github.com/termux/termux-app#Installation) for details before reading forward.**
 
@@ -74,6 +74,7 @@ This fork (`termux-float-modern`) builds on upstream `Termux:Float`. In addition
 
 - **Material Design 3 interface** — the floating window chrome, the overlay permission screen and the window background use the Material Design 3 baseline dark scheme: 16dp rounded window corners, a surface container title bar, 40dp icon buttons with circular state layers, the MD3 type scale and MD3 colors for the bubble outline.
 - **Localized UI** — every user visible string is a translatable resource and Simplified Chinese (`zh-rCN`) is included. Run `scripts/check-translations.py` after adding strings so translations cannot drift out of sync.
+- **Shared sessions** — the session picker in the window title bar lists the tmux sessions running inside Termux. A session attached in the floating window can be opened in the Termux app (and vice versa) and both views stay in sync, because both are tmux clients of the same session. Requires `pkg install tmux`; handing a session over to Termux additionally requires `allow-external-apps = true` in `~/.termux/termux.properties`. Plain shell sessions cannot be shared - a pty belongs to the process that created it.
 ##
 
 

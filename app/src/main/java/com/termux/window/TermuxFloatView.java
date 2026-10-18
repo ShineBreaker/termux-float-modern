@@ -57,6 +57,16 @@ public class TermuxFloatView extends LinearLayout {
     TermuxFloatSessionClient mTermuxFloatSessionClient;
 
     /**
+     * The service hosting this window, needed to switch the window to another tmux session.
+     */
+    private TermuxFloatService mService;
+
+    /**
+     * Dialog listing the tmux sessions shared with the Termux app.
+     */
+    private TermuxFloatSessionDialog mSessionDialog;
+
+    /**
      * Termux Float app shared preferences manager.
      */
     private TermuxFloatAppSharedPreferences mPreferences;
@@ -126,6 +136,8 @@ public class TermuxFloatView extends LinearLayout {
     public void initFloatView(TermuxFloatService service) {
         Logger.logDebug(LOG_TAG, "initFloatView");
 
+        mService = service;
+
         // Load termux shared properties
         mProperties = new TermuxFloatAppSharedProperties(getContext());
 
@@ -169,8 +181,21 @@ public class TermuxFloatView extends LinearLayout {
         ImageButton minimizeButton = findViewById(R.id.minimize_button);
         minimizeButton.setOnClickListener(v -> mFloatingBubbleManager.toggleBubble());
 
+        ImageButton sessionsButton = findViewById(R.id.sessions_button);
+        sessionsButton.setOnClickListener(v -> showSessionsDialog());
+
         ImageButton exitButton = findViewById(R.id.exit_button);
         exitButton.setOnClickListener(v -> exit());
+    }
+
+    /** Show the tmux session picker, creating the dialog lazily. */
+    private void showSessionsDialog() {
+        if (mService == null) return;
+
+        if (mSessionDialog == null)
+            mSessionDialog = new TermuxFloatSessionDialog(mService);
+
+        mSessionDialog.show();
     }
 
     @Override
@@ -333,6 +358,12 @@ public class TermuxFloatView extends LinearLayout {
     }
 
     public void closeFloatingWindow() {
+        if (mSessionDialog != null) {
+            mSessionDialog.dismiss();
+            mSessionDialog.release();
+            mSessionDialog = null;
+        }
+
         if (getWindowToken() != null)
             mWindowManager.removeView(this);
 

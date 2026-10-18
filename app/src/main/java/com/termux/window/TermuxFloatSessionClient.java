@@ -77,6 +77,10 @@ public class TermuxFloatSessionClient extends TermuxTerminalSessionClientBase {
 
     @Override
     public void onSessionFinished(TerminalSession finishedSession) {
+        // Switching tmux sessions kills the previous session, which must not stop the service;
+        // only the session the window is currently showing may do that.
+        if (finishedSession != mService.getCurrentSession()) return;
+
         mService.requestStopService();
     }
 

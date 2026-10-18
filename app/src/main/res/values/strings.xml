@@ -13,6 +13,18 @@
 
     <string name="window_action_minimize">Collapse to bubble</string>
     <string name="window_action_exit">Exit window</string>
+    <string name="window_action_sessions">Sessions</string>
+
+    <string name="sessions_dialog_title">Sessions</string>
+    <string name="sessions_dialog_hint">Sessions are shared with the Termux app through tmux: attach a session here, then open the same session in Termux and both stay in sync.</string>
+    <string name="sessions_dialog_tmux_missing">tmux is not installed in Termux, so sessions cannot be shared. Run pkg install tmux and reopen this dialog.</string>
+    <string name="sessions_dialog_empty">No tmux session exists yet. Create one below.</string>
+    <string name="sessions_dialog_new_session_hint">New session name</string>
+    <string name="sessions_dialog_create">Create</string>
+    <string name="sessions_dialog_open_in_termux">Open in Termux</string>
+    <string name="sessions_dialog_open_in_termux_failed">Could not hand the session over to Termux. Set allow-external-apps=true in ~/.termux/termux.properties and try again.</string>
+    <string name="session_detail_windows">%1$d windows</string>
+    <string name="session_detail_attached">attached</string>
 
     <string name="draw_overlay_permission_title">Overlay permission required</string>
     <string name="draw_overlay_permission_explanation">This app requires permission to draw overlays.</string>

@@ -20,6 +20,11 @@
             style="@style/Widget.TermuxFloat.IconButton"
             android:contentDescription="@string/window_action_minimize"
             android:src="@drawable/ic_minimize_icon" />
+        <ImageButton
+            android:id="@+id/sessions_button"
+            style="@style/Widget.TermuxFloat.IconButton"
+            android:contentDescription="@string/window_action_sessions"
+            android:src="@drawable/ic_sessions_icon" />
         <Space
             android:layout_width="0dp"
             android:layout_height="0dp"

@@ -11,6 +11,7 @@ import android.content.res.Resources;
 import android.os.Build;
 import android.os.IBinder;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,7 +21,9 @@ import com.termux.shared.logger.Logger;
 import com.termux.shared.notification.NotificationUtils;
 import com.termux.shared.shell.command.ExecutionCommand;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.TermuxConstants.TERMUX_APP.RUN_COMMAND_SERVICE;
 import com.termux.shared.termux.TermuxConstants.TERMUX_FLOAT_APP.TERMUX_FLOAT_SERVICE;
+import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalSession;
@@ -250,6 +253,71 @@ public class TermuxFloatService extends Service {
 
     public TerminalSession getCurrentSession() {
         return mSession != null ? mSession.getTerminalSession() : null;
+    }
+
+    /**
+     * Attach the float window to the given tmux session, creating the session when it does not
+     * exist yet. The session is shared with the Termux app, which can attach to the same name.
+     */
+    public void switchToTmuxSession(@NonNull String sessionName) {
+        if (mFloatingWindow == null) return;
+
+        Logger.logDebug(LOG_TAG, "Switching float window to tmux session \"" + sessionName + "\"");
+
+        ExecutionCommand executionCommand = new ExecutionCommand(0, TmuxUtils.TMUX_EXECUTABLE_PATH,
+                TmuxUtils.buildAttachArguments(sessionName), null,
+                mFloatingWindow.getProperties().getDefaultWorkingDirectory(),
+                ExecutionCommand.Runner.TERMINAL_SESSION.getName(), false);
+
+        TermuxSession oldSession = mSession;
+        TermuxSession newSession = createTermuxSession(executionCommand, TmuxUtils.buildShellName(sessionName));
+        if (newSession == null) {
+            Logger.logError(LOG_TAG, "Failed to attach the float window to tmux session \"" + sessionName + "\"");
+            return;
+        }
+
+        mSession = newSession;
+        mFloatingWindow.getTerminalView().attachSession(newSession.getTerminalSession());
+        mFloatingWindow.showTouchKeyboard();
+
+        // Kill the previous session only once the new one is in place, so that its
+        // onSessionFinished() callback cannot stop the service mid-switch.
+        if (oldSession != null)
+            oldSession.killIfExecuting(this, false);
+    }
+
+    /**
+     * Ask the Termux app to open - or focus - a session attached to the given tmux session, so the
+     * session can be used from the main app while it stays attached here.
+     */
+    public void openTmuxSessionInTermuxApp(@NonNull String sessionName) {
+        TermuxAppSharedProperties termuxAppProperties = TermuxAppSharedProperties.init(this);
+        if (termuxAppProperties == null || !termuxAppProperties.shouldAllowExternalApps()) {
+            Logger.showToast(this, getString(R.string.sessions_dialog_open_in_termux_failed), true);
+            return;
+        }
+
+        Intent intent = new Intent();
+        intent.setClassName(TermuxConstants.TERMUX_PACKAGE_NAME, TermuxConstants.TERMUX_APP.RUN_COMMAND_SERVICE_NAME);
+        intent.setAction(RUN_COMMAND_SERVICE.ACTION_RUN_COMMAND);
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_COMMAND_PATH, TmuxUtils.TMUX_EXECUTABLE_PATH);
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_ARGUMENTS, TmuxUtils.buildAttachArguments(sessionName));
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_WORKDIR, TermuxConstants.TERMUX_HOME_DIR_PATH);
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_RUNNER, ExecutionCommand.Runner.TERMINAL_SESSION.getName());
+        // The shell name is derived from the tmux session so that repeated requests focus the
+        // existing Termux session instead of stacking up new ones.
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_SHELL_NAME, TmuxUtils.buildShellName(sessionName));
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_SHELL_CREATE_MODE, ExecutionCommand.ShellCreateMode.NO_SHELL_WITH_NAME.getMode());
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_SESSION_ACTION,
+                String.valueOf(TermuxConstants.TERMUX_APP.TERMUX_SERVICE.VALUE_EXTRA_SESSION_ACTION_SWITCH_TO_NEW_SESSION_AND_OPEN_ACTIVITY));
+        intent.putExtra(RUN_COMMAND_SERVICE.EXTRA_COMMAND_LABEL, getString(R.string.sessions_dialog_open_in_termux));
+
+        try {
+            startService(intent);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to hand tmux session over to the Termux app", e);
+            Logger.showToast(this, getString(R.string.sessions_dialog_open_in_termux_failed), true);
+        }
     }
 
 }
