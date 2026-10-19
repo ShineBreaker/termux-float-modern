@@ -4,6 +4,14 @@ on:
   release:
     types:
       - published
+  # Push and release events do not start workflows on this fork's Actions, so a
+  # release published with `gh release create` would never get its APKs attached.
+  # Dispatch the build for an existing tag instead (see RELEASING.md).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and attach to (e.g. v0.21.0)'
+        required: true
 
 jobs:
   build:
@@ -24,7 +32,9 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.GITHUB_REF }}
+          # The tag whose release is being built: from the release event, or the
+          # tag input when the workflow is dispatched manually.
+          ref: ${{ github.event.release.tag_name || github.event.inputs.tag || github.ref }}
 
       - name: Build and upload files to release
         shell: bash {0}
@@ -37,7 +47,10 @@ jobs:
           }
 
           echo "Setting vars"
-          RELEASE_VERSION_NAME="${GITHUB_REF/refs\/tags\//}"
+          RELEASE_VERSION_NAME="${{ github.event.release.tag_name || github.event.inputs.tag || '' }}"
+          if [ -z "$RELEASE_VERSION_NAME" ]; then
+            RELEASE_VERSION_NAME="${GITHUB_REF/refs\/tags\//}"
+          fi
           if ! printf "%s" "${RELEASE_VERSION_NAME/v/}" | grep -qP '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'; then
             exit_on_error "The release version '${RELEASE_VERSION_NAME/v/}' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html."
           fi
