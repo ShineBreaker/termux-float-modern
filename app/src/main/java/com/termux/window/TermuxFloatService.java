@@ -185,11 +185,17 @@ public class TermuxFloatService extends Service {
 
         mFloatingWindow.initFloatView(this);
 
-        mSession = createTermuxSession(
-                new ExecutionCommand(0, null, null, null, mFloatingWindow.getProperties().getDefaultWorkingDirectory(), ExecutionCommand.Runner.TERMINAL_SESSION.getName(), false), null);
-        if (mSession == null)
-            return false;
-        mFloatingWindow.getTerminalView().attachSession(mSession.getTerminalSession());
+        // The initial session attaches to the shared tmux session when tmux is installed,
+        // so the Termux app can see and attach it too; a plain shell is the fallback.
+        if (TmuxUtils.isTmuxInstalled())
+            switchToTmuxSession(TmuxUtils.DEFAULT_SESSION_NAME);
+        if (mSession == null) {
+            mSession = createTermuxSession(
+                    new ExecutionCommand(0, null, null, null, mFloatingWindow.getProperties().getDefaultWorkingDirectory(), ExecutionCommand.Runner.TERMINAL_SESSION.getName(), false), null);
+            if (mSession == null)
+                return false;
+            mFloatingWindow.getTerminalView().attachSession(mSession.getTerminalSession());
+        }
 
         try {
             mFloatingWindow.launchFloatingWindow();
