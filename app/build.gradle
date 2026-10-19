@@ -26,8 +26,8 @@ android {
         applicationId "com.termux.window"
         minSdk project.properties.minSdkVersion.toInteger()
         targetSdk project.properties.targetSdkVersion.toInteger()
-        versionCode 1005
-        versionName "0.20.1"
+        versionCode 1006
+        versionName "0.21.0"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
@@ -62,7 +62,7 @@ android {
             minifyEnabled true
             shrinkResources false // Reproducible builds
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            if (emacsKeystore != null) signingConfig signingConfigs.emacs
+            signingConfig emacsKeystore != null ? signingConfigs.emacs : signingConfigs.debug
         }
 
         debug {

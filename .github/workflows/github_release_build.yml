@@ -8,8 +8,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The repository default for GITHUB_TOKEN is read-only; uploading the release
+    # assets (and deleting them on failure) needs write access to releases and tags.
+    permissions:
+      contents: write
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Signing inputs for the emacs variant: either a base64 encoded keystore in
+      # the EMACS_KEYSTORE_BASE64 secret, or a download URL in the
+      # EMACS_KEYSTORE_URL repository variable. Neither is needed for the github
+      # variant, which is signed with the bundled test key.
+      EMACS_KEYSTORE_BASE64: ${{ secrets.EMACS_KEYSTORE_BASE64 }}
+      EMACS_KEYSTORE_URL: ${{ vars.EMACS_KEYSTORE_URL }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -22,8 +32,7 @@ jobs:
           exit_on_error() {
               echo "$1"
               echo "Deleting '$RELEASE_VERSION_NAME' release and '$GITHUB_REF' tag"
-              hub release delete "$RELEASE_VERSION_NAME"
-              git push --delete origin "$GITHUB_REF"
+              gh release delete "$RELEASE_VERSION_NAME" --yes --cleanup-tag
               exit 1
           }
 
@@ -33,32 +42,76 @@ jobs:
             exit_on_error "The release version '${RELEASE_VERSION_NAME/v/}' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html."
           fi
 
-          APK_DIR_PATH="./app/build/outputs/apk/debug"
-          APK_VERSION_TAG="$RELEASE_VERSION_NAME+github.debug"
-          APK_BASENAME_PREFIX="termux-float-app_$APK_VERSION_TAG"
+          APK_DIR_PATH="./app/build/outputs/apk/release"
+          # Gradlew wipes the variant output dir on every build, so APKs are staged
+          # out of it between the two signing builds.
+          DIST_DIR_PATH="./dist"
+          mkdir -p "$DIST_DIR_PATH"
+          APK_VERSION_TAG="$RELEASE_VERSION_NAME+github.release"
+          EMACS_APK_VERSION_TAG="$RELEASE_VERSION_NAME+emacs.release"
 
-          echo "Building APK file for '$RELEASE_VERSION_NAME' release with '$APK_VERSION_TAG' tag"
+          # Variant 1: github distribution, signed with the bundled test key.
+          # Works with Termux installs that share that signature (e.g. upstream
+          # GitHub builds); installable next to any Termux only when signatures match.
+          rm -f local.properties
           export TERMUX_FLOAT_APP__BUILD__APK_VERSION_TAG="$APK_VERSION_TAG" # Used by app/build.gradle
-          if ! ./gradlew assembleDebug; then
+          echo "Building APK file for '$RELEASE_VERSION_NAME' release with '$APK_VERSION_TAG' tag"
+          if ! ./gradlew assembleRelease; then
             exit_on_error "Build failed for '$RELEASE_VERSION_NAME' release with '$APK_VERSION_TAG' tag."
           fi
+          mv "$APK_DIR_PATH/termux-float-app_$APK_VERSION_TAG.apk" "$DIST_DIR_PATH/"
 
-          echo "Validating APK file"
-          if ! test -f "$APK_DIR_PATH/${APK_BASENAME_PREFIX}.apk"; then
-            files_found="$(ls "$APK_DIR_PATH")"
-            exit_on_error "Failed to find built APK file at '$APK_DIR_PATH/${APK_BASENAME_PREFIX}.apk'. Files found: "$'\n'"$files_found"
+          # Variant 2: signed with the GNU Emacs build key shared with the re-signed
+          # Termux app, which is what android:sharedUserId="com.termux" requires for
+          # session sharing on that install.
+          EMACS_KEYSTORE_FILE="$RUNNER_TEMP/emacs.keystore"
+          if [ -n "$EMACS_KEYSTORE_BASE64" ]; then
+              echo "$EMACS_KEYSTORE_BASE64" | base64 -d > "$EMACS_KEYSTORE_FILE"
+          elif [ -n "$EMACS_KEYSTORE_URL" ]; then
+              curl -fsSL --connect-timeout 15 -o "$EMACS_KEYSTORE_FILE" "$EMACS_KEYSTORE_URL"
+          fi
+
+          if [ -s "$EMACS_KEYSTORE_FILE" ]; then
+              printf 'sdk.dir=%s\nemacs.keystore.path=%s\n' "$ANDROID_HOME" "$EMACS_KEYSTORE_FILE" > local.properties
+              export TERMUX_FLOAT_APP__BUILD__APK_VERSION_TAG="$EMACS_APK_VERSION_TAG"
+              echo "Building APK file for '$RELEASE_VERSION_NAME' release with '$EMACS_APK_VERSION_TAG' tag"
+              if ! ./gradlew assembleRelease; then
+                rm -f local.properties
+                exit_on_error "Build failed for '$RELEASE_VERSION_NAME' release with '$EMACS_APK_VERSION_TAG' tag."
+              fi
+              mv "$APK_DIR_PATH/termux-float-app_$EMACS_APK_VERSION_TAG.apk" "$DIST_DIR_PATH/"
+              rm -f local.properties
+          else
+              echo "::warning::No emacs keystore available (set the EMACS_KEYSTORE_BASE64 secret or EMACS_KEYSTORE_URL repository variable); skipping the emacs-signed build"
+          fi
+
+          unset TERMUX_FLOAT_APP__BUILD__APK_VERSION_TAG
+
+          echo "Validating APK files"
+          if ! test -f "$DIST_DIR_PATH/termux-float-app_$APK_VERSION_TAG.apk"; then
+            files_found="$(ls "$DIST_DIR_PATH")"
+            exit_on_error "Failed to find built APK file at '$DIST_DIR_PATH/termux-float-app_$APK_VERSION_TAG.apk'. Files found: "$'\n'"$files_found"
+          fi
+          if [ -s "$EMACS_KEYSTORE_FILE" ] && ! test -f "$DIST_DIR_PATH/termux-float-app_$EMACS_APK_VERSION_TAG.apk"; then
+            files_found="$(ls "$DIST_DIR_PATH")"
+            exit_on_error "Failed to find built APK file at '$DIST_DIR_PATH/termux-float-app_$EMACS_APK_VERSION_TAG.apk'. Files found: "$'\n'"$files_found"
           fi
 
           echo "Generating checksums-sha256.txt file"
-          if ! (cd "$APK_DIR_PATH"; sha256sum "${APK_BASENAME_PREFIX}.apk" > checksums-sha256.txt); then
+          APK_FILES="termux-float-app_$APK_VERSION_TAG.apk"
+          if [ -f "$DIST_DIR_PATH/termux-float-app_$EMACS_APK_VERSION_TAG.apk" ]; then
+            APK_FILES="$APK_FILES termux-float-app_$EMACS_APK_VERSION_TAG.apk"
+          fi
+          if ! (cd "$DIST_DIR_PATH"; sha256sum $APK_FILES > checksums-sha256.txt); then
             exit_on_error "Generate checksums-sha256.txt file failed for '$RELEASE_VERSION_NAME' release."
           fi
-          echo "checksums-sha256.txt:"$'\n```\n'"$(cat "$APK_DIR_PATH/checksums-sha256.txt")"$'\n```'
+          echo "checksums-sha256.txt:"$'\n```\n'"$(cat "$DIST_DIR_PATH/checksums-sha256.txt")"$'\n```'
 
           echo "Uploading files to release"
-          if ! gh release upload "$RELEASE_VERSION_NAME" \
-            "$APK_DIR_PATH/${APK_BASENAME_PREFIX}.apk" \
-            "$APK_DIR_PATH/checksums-sha256.txt" \
-          ; then
+          UPLOAD_FILES="$DIST_DIR_PATH/termux-float-app_$APK_VERSION_TAG.apk $DIST_DIR_PATH/checksums-sha256.txt"
+          if [ -f "$DIST_DIR_PATH/termux-float-app_$EMACS_APK_VERSION_TAG.apk" ]; then
+            UPLOAD_FILES="$UPLOAD_FILES $DIST_DIR_PATH/termux-float-app_$EMACS_APK_VERSION_TAG.apk"
+          fi
+          if ! gh release upload "$RELEASE_VERSION_NAME" $UPLOAD_FILES; then
             exit_on_error "Upload files to release failed for '$RELEASE_VERSION_NAME' release."
           fi
