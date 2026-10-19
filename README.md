@@ -1,5 +1,7 @@
 # Termux:Float
 
+**English** | [简体中文](README.zh-CN.md)
+
 [![Build status](https://github.com/termux/termux-float/workflows/Build/badge.svg)](https://github.com/termux/termux-float/actions)
 [![Join the chat at https://gitter.im/termux/termux](https://badges.gitter.im/termux/termux.svg)](https://gitter.im/termux/termux)
 
@@ -22,7 +24,7 @@ A [Termux] plugin app to show the terminal in a floating terminal window.
 
 ### Installation
 
-Latest version is `v0.20.1`.
+Latest version is `v0.21.0`.
 
 **Check [`termux-app` Installation](https://github.com/termux/termux-app#Installation) for details before reading forward.**
 
@@ -44,7 +46,7 @@ The APKs for `Github Releases` will be listed under `Assets` drop-down of the re
 
 The APKs for `Github Actions` will be listed under `Artifacts` section of the workflow run. These are created for each commit/push done to the repository and can be used by users who don't want to wait for releases and want to try out the latest features immediately or want to test their pull requests. Note that for action workflows, you need to be [**logged into a `Github` account**](https://github.com/login) for the `Artifacts` links to be enabled/clickable. If you are using the [`Github` app](https://github.com/mobile), then make sure to open workflow link in a browser like Chrome or Firefox that has your Github account logged in since the in-app browser may not be logged in.
 
-The APKs for both of these are [`debuggable`](https://developer.android.com/studio/debug) and are compatible with each other but they are not compatible with other sources.
+Each release and action build ships two signing variants: `+github.release` signed with the bundled test key (compatible with upstream GitHub builds of Termux) and `+emacs.release` signed with the GNU Emacs build key (for the re-signed Termux app). Install the one matching your Termux install's signature — the variants are not interchangeable with each other or with other sources.
 
 ### Google Play Store **(Deprecated)**
 
@@ -72,9 +74,21 @@ nano ~/.termux/termux.float.properties
 
 This fork (`termux-float-modern`) builds on upstream `Termux:Float`. In addition to the upstream features documented below, it provides:
 
-- **Material Design 3 interface** — the floating window chrome, the overlay permission screen and the window background use the Material Design 3 baseline dark scheme: 16dp rounded window corners, a surface container title bar, 40dp icon buttons with circular state layers, the MD3 type scale and MD3 colors for the bubble outline.
+- **Material Design 3 interface** — the floating window chrome, the overlay permission screen and the window background use the Material Design 3 baseline dark scheme: 16dp rounded window corners, a surface container title bar, 40dp icon buttons with circular state layers, the MD3 type scale and MD3 colors for the bubble outline. On Android 12+ the window chrome also follows the system wallpaper palette (dynamic colors) for surfaces, text and accents; older versions keep the baseline dark scheme.
 - **Localized UI** — every user visible string is a translatable resource and Simplified Chinese (`zh-rCN`) is included. Run `scripts/check-translations.py` after adding strings so translations cannot drift out of sync.
-- **Shared sessions** — the session picker in the window title bar lists the tmux sessions running inside Termux. A session attached in the floating window can be opened in the Termux app (and vice versa) and both views stay in sync, because both are tmux clients of the same session. Requires `pkg install tmux`; handing a session over to Termux additionally requires `allow-external-apps = true` in `~/.termux/termux.properties`. Plain shell sessions cannot be shared - a pty belongs to the process that created it.
+- **Shared sessions** — the session picker in the window title bar lists the tmux sessions running inside Termux. A session attached in the floating window can be opened in the Termux app (and vice versa) and both views stay in sync, because both are tmux clients of the same session. When tmux is installed, the floating window's initial session also runs inside tmux as `termux-float`, so the Termux app can attach it straight away instead of it starting as an unshareable plain shell. Requires `pkg install tmux`; handing a session over to Termux additionally requires `allow-external-apps = true` in `~/.termux/termux.properties`. Plain shell sessions cannot be shared - a pty belongs to the process that created it.
+
+  Termux tabs are plain shells by default, so they never show up in the float window's picker. To make every new Termux tab land inside tmux, append one of these to your shell's rc file (`~/.bashrc`, `~/.zshrc`, ...):
+
+  ```sh
+  # every new tab attaches to one shared session named "main"
+  [ -z "$TMUX" ] && exec tmux new-session -A -s main
+
+  # or give each tab its own tmux session and pick it in the float window
+  [ -z "$TMUX" ] && exec tmux
+  ```
+
+  For a single tab that is already open, just run `tmux` inside it to turn it into a tmux client.
 - **Same-signature builds** — the app declares `android:sharedUserId="com.termux"`, so it must be signed with the same certificate as the installed Termux app; a mismatch fails installation with `INSTALL_FAILED_SHARED_USER_INCOMPATIBLE` and, even if installed, would give it a different UID. Point `local.properties` at the keystore used for the Termux build (`emacs.keystore.path=/path/to/emacs.keystore`; alias and password default to the public GNU Emacs values, `emacs keystore` / `emacs1`) and both debug and release builds are signed with it. Without that entry the upstream debug test key is used.
 ##
 
@@ -98,6 +112,8 @@ Once log levels have been set, you can run the `logcat` command in `Termux` or `
 ## For Maintainers and Contributors
 
 Check [For Maintainers and Contributors](https://github.com/termux/termux-app#For-Maintainers-and-Contributors) section of `termux/termux-app` `README` for details.
+
+Release workflow for this fork — version bump, tagging and the CI dual-signature setup (testkey `+github` and emacs-keystore `+emacs` APKs): [`RELEASING.md`](RELEASING.md) ([中文](RELEASING.zh-CN.md)).
 ##
 
 
