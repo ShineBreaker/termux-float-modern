@@ -6,6 +6,9 @@
     <dimen name="floating_window_border_width">1dp</dimen>
     <dimen name="floating_window_corner_radius">16dp</dimen>
     <dimen name="floating_window_controls_height">44dp</dimen>
+    <!-- Border + controls bar + corner radius, so the header surface layer of the
+         window background reaches behind the terminal's clipped top corners -->
+    <dimen name="floating_window_header_height">61dp</dimen>
     <dimen name="floating_window_controls_horizontal_padding">4dp</dimen>
     <dimen name="icon_button_size">40dp</dimen>
 </resources>

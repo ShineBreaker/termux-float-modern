@@ -1,8 +1,11 @@
 package com.termux.window;
 
 import android.app.Dialog;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
@@ -41,6 +44,8 @@ class TermuxFloatSessionDialog {
 
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
 
+    private final WindowColorScheme mColorScheme;
+
     TermuxFloatSessionDialog(@NonNull TermuxFloatService service) {
         mService = service;
 
@@ -57,7 +62,28 @@ class TermuxFloatSessionDialog {
 
         mCreateButton.setOnClickListener(v -> createSession());
 
+        mColorScheme = WindowColorScheme.load(service);
+        applyColorScheme();
         configureWindow();
+    }
+
+    /** Tint the dialog chrome to the active color scheme. */
+    private void applyColorScheme() {
+        WindowColorScheme.tintShape(mDialog.findViewById(R.id.sessions_root).getBackground(), mColorScheme.surfaceContainerHigh, 0, 0);
+
+        ((TextView) mDialog.findViewById(R.id.sessions_title)).setTextColor(mColorScheme.onSurface);
+        mHint.setTextColor(mColorScheme.onSurfaceVariant);
+        mEmpty.setTextColor(mColorScheme.onSurfaceVariant);
+        mNewSessionName.setTextColor(mColorScheme.onSurface);
+        mNewSessionName.setHintTextColor(mColorScheme.onSurfaceVariant);
+
+        mCreateButton.setTextColor(mColorScheme.onPrimary);
+        Drawable buttonBackground = mCreateButton.getBackground();
+        if (buttonBackground instanceof RippleDrawable) {
+            RippleDrawable ripple = (RippleDrawable) buttonBackground;
+            ripple.setColor(ColorStateList.valueOf(mColorScheme.onPrimaryStateLayer()));
+            WindowColorScheme.tintShape(ripple, mColorScheme.primary, 0, 0);
+        }
     }
 
     /** Show the dialog and reload the session list. */
@@ -125,7 +151,12 @@ class TermuxFloatSessionDialog {
         for (TmuxUtils.TmuxSession session : sessions) {
             View item = inflater.inflate(R.layout.item_session, mSessionList, false);
             ((TextView) item.findViewById(R.id.session_name)).setText(session.name);
+            ((TextView) item.findViewById(R.id.session_name)).setTextColor(mColorScheme.onSurface);
             ((TextView) item.findViewById(R.id.session_detail)).setText(buildDetail(session));
+            ((TextView) item.findViewById(R.id.session_detail)).setTextColor(mColorScheme.onSurfaceVariant);
+            Drawable itemBackground = item.getBackground();
+            if (itemBackground instanceof RippleDrawable)
+                ((RippleDrawable) itemBackground).setColor(ColorStateList.valueOf(mColorScheme.stateLayer()));
 
             item.setOnClickListener(v -> {
                 mService.switchToTmuxSession(session.name);
@@ -133,6 +164,10 @@ class TermuxFloatSessionDialog {
             });
 
             ImageButton openInTermuxButton = item.findViewById(R.id.open_in_termux_button);
+            openInTermuxButton.setImageTintList(ColorStateList.valueOf(mColorScheme.onSurfaceVariant));
+            Drawable buttonBackground = openInTermuxButton.getBackground();
+            if (buttonBackground instanceof RippleDrawable)
+                ((RippleDrawable) buttonBackground).setColor(ColorStateList.valueOf(mColorScheme.stateLayer()));
             openInTermuxButton.setOnClickListener(v -> mService.openTmuxSessionInTermuxApp(session.name));
 
             mSessionList.addView(item);

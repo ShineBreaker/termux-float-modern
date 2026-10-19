@@ -1,10 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Background for the window: rounded surface with a 1dp outline -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle" >
-    <corners android:radius="@dimen/floating_window_corner_radius" />
-    <stroke
-        android:width="@dimen/floating_window_border_width"
-        android:color="@color/md_theme_dark_outline_variant" />
-    <solid android:color="@color/md_theme_dark_surface" />
-</shape>
+<!-- Background for the window: rounded surface with a 1dp outline.
+     A second layer extends the controls bar surface downwards, so the corners
+     clipped off the top of the terminal view match the bar instead of exposing
+     the darker window surface. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/floating_window_corner_radius" />
+            <stroke
+                android:width="@dimen/floating_window_border_width"
+                android:color="@color/md_theme_dark_outline_variant" />
+            <solid android:color="@color/md_theme_dark_surface" />
+        </shape>
+    </item>
+    <item
+        android:drawable="@drawable/floating_window_controls_background"
+        android:top="@dimen/floating_window_border_width"
+        android:left="@dimen/floating_window_border_width"
+        android:right="@dimen/floating_window_border_width"
+        android:height="@dimen/floating_window_header_height"
+        android:gravity="top|fill_horizontal" />
+</layer-list>

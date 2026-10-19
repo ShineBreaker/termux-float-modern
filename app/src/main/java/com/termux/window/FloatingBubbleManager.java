@@ -28,7 +28,6 @@ public class FloatingBubbleManager {
     private int mOriginalLayoutHeight;
     private boolean mDidCaptureOriginalValues;
     private Drawable mOriginalTerminalViewBackground;
-    private Drawable mOriginalFloatViewBackground;
 
     public FloatingBubbleManager(TermuxFloatView termuxFloatView) {
         mTermuxFloatView = termuxFloatView;
@@ -47,7 +46,7 @@ public class FloatingBubbleManager {
         if (isMinimized()) {
             return;
         }
-        mTermuxFloatView.setBackgroundResource(isInLongPressState ? R.drawable.floating_window_background_resize : R.drawable.floating_window_background);
+        mTermuxFloatView.applyWindowBackground(isInLongPressState ? R.drawable.floating_window_background_resize : R.drawable.floating_window_background);
     }
 
     public void displayAsFloatingBubble() {
@@ -71,7 +70,7 @@ public class FloatingBubbleManager {
         terminalView.setClipToOutline(true);
 
         TermuxFloatView termuxFloatView = getTermuxFloatView();
-        termuxFloatView.setBackgroundResource(R.drawable.round_button_with_outline);
+        termuxFloatView.applyWindowBackground(R.drawable.round_button_with_outline);
         termuxFloatView.setClipToOutline(true);
         termuxFloatView.hideTouchKeyboard();
         termuxFloatView.changeFocus(false);
@@ -96,7 +95,7 @@ public class FloatingBubbleManager {
         terminalView.setClipToOutline(false);
 
         TermuxFloatView termuxFloatView = getTermuxFloatView();
-        termuxFloatView.setBackground(mOriginalFloatViewBackground);
+        termuxFloatView.applyWindowBackground(R.drawable.floating_window_background);
         termuxFloatView.setClipToOutline(false);
         termuxFloatView.applyTerminalViewShape();
 
@@ -121,14 +120,12 @@ public class FloatingBubbleManager {
             mOriginalLayoutHeight = layoutParams.height;
 
             mOriginalTerminalViewBackground = getTerminalView().getBackground();
-            mOriginalFloatViewBackground = getTermuxFloatView().getBackground();
             mDidCaptureOriginalValues = true;
         }
     }
 
     public void cleanup() {
         mTermuxFloatView = null;
-        mOriginalFloatViewBackground = null;
         mOriginalTerminalViewBackground = null;
     }
 

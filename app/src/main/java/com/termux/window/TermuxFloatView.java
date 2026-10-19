@@ -3,9 +3,13 @@ package com.termux.window;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Outline;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.view.Gravity;
@@ -18,6 +22,8 @@ import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+
+import androidx.annotation.DrawableRes;
 
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
@@ -65,6 +71,12 @@ public class TermuxFloatView extends LinearLayout {
      * Dialog listing the tmux sessions shared with the Termux app.
      */
     private TermuxFloatSessionDialog mSessionDialog;
+
+    /** The active chrome color scheme, resolved in {@link #initFloatView}. */
+    private WindowColorScheme mColorScheme;
+
+    private int mBorderWidthPx;
+    private int mBubbleStrokeWidthPx;
 
     /**
      * Termux Float app shared preferences manager.
@@ -150,6 +162,10 @@ public class TermuxFloatView extends LinearLayout {
 
         mTermuxFloatSessionClient = new TermuxFloatSessionClient(service, this);
 
+        mColorScheme = WindowColorScheme.load(getContext());
+        mBorderWidthPx = (int) getResources().getDimension(R.dimen.floating_window_border_width);
+        mBubbleStrokeWidthPx = (int) getResources().getDimension(R.dimen.bubble_outline_stroke_width);
+
         mTerminalView = findViewById(R.id.terminal_view);
         mTermuxFloatViewClient = new TermuxFloatViewClient(this, mTermuxFloatSessionClient);
         mTerminalView.setTerminalViewClient(mTermuxFloatViewClient);
@@ -158,6 +174,54 @@ public class TermuxFloatView extends LinearLayout {
 
         mFloatingBubbleManager = new FloatingBubbleManager(this);
         initWindowControls();
+        applyWindowColors();
+    }
+
+    /**
+     * Set the window background resource and tint it to the active color scheme.
+     * Used for every background swap so the scheme survives state changes.
+     */
+    void applyWindowBackground(@DrawableRes int resId) {
+        setBackgroundResource(resId);
+        Drawable background = getBackground();
+        if (background == null || mColorScheme == null) return;
+
+        if (resId == R.drawable.round_button_with_outline) {
+            WindowColorScheme.tintShape(background, mColorScheme.surfaceContainer, mBubbleStrokeWidthPx, mColorScheme.outlineVariant);
+            return;
+        }
+
+        int strokeColor = resId == R.drawable.floating_window_background_resize
+                ? mColorScheme.primary : mColorScheme.outlineVariant;
+        if (background instanceof LayerDrawable) {
+            LayerDrawable layers = (LayerDrawable) background;
+            // The base surface and outline, then the band matching the controls bar.
+            WindowColorScheme.tintShape(layers.getDrawable(0), mColorScheme.surface, mBorderWidthPx, strokeColor);
+            if (layers.getNumberOfLayers() > 1)
+                WindowColorScheme.tintShape(layers.getDrawable(1), mColorScheme.surfaceContainerHigh, 0, 0);
+        } else {
+            WindowColorScheme.tintShape(background, mColorScheme.surface, mBorderWidthPx, strokeColor);
+        }
+    }
+
+    /** Apply the active color scheme to the chrome already inflated from the layout. */
+    private void applyWindowColors() {
+        tintControlsBarAndIcons();
+        applyWindowBackground(R.drawable.floating_window_background);
+    }
+
+    private void tintControlsBarAndIcons() {
+        WindowColorScheme.tintShape(mWindowControls.getBackground(), mColorScheme.surfaceContainerHigh, 0, 0);
+
+        ColorStateList iconTint = ColorStateList.valueOf(mColorScheme.onSurfaceVariant);
+        int[] buttonIds = {R.id.minimize_button, R.id.sessions_button, R.id.exit_button};
+        for (int id : buttonIds) {
+            ImageButton button = findViewById(id);
+            button.setImageTintList(iconTint);
+            Drawable background = button.getBackground();
+            if (background instanceof RippleDrawable)
+                ((RippleDrawable) background).setColor(ColorStateList.valueOf(mColorScheme.stateLayer()));
+        }
     }
 
     /**

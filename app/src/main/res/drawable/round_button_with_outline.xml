@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="oval">
-            <solid android:color="@color/md_theme_dark_surface_container" />
-            <stroke android:color="@color/md_theme_dark_outline_variant"
-                android:width="@dimen/bubble_outline_stroke_width" />
-        </shape>
-    </item>
-</selector>
+<!-- Circular bubble surface with outline -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/md_theme_dark_surface_container" />
+    <stroke android:color="@color/md_theme_dark_outline_variant"
+        android:width="@dimen/bubble_outline_stroke_width" />
+</shape>
