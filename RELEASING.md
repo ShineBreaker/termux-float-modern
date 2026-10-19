@@ -44,13 +44,29 @@ is the distribution build for anything else.
    - Update the "Latest version" line in `README.md` and `README.zh-CN.md`.
 2. **Commit** with the repo's conventional-commit style
    (`feat(ui):`, `fix(lint):`, `build(signing):`, …) and push to `master`.
-   A normal push already builds both variants, so the release build is verified
-   before tagging.
-3. **Tag and publish**: create the tag `v<versionName>` and a GitHub release.
-   `github_release_build.yml` runs on `release: published`, builds both APKs and
-   attaches them plus `checksums-sha256.txt` to the release. If the workflow fails
-   it deletes the release and the tag again, so the tag is safe to retry.
-4. **Verify**: download the release APKs, check `checksums-sha256.txt`, install the
+3. **Build and verify**: on this fork, push and release events do not start the
+   workflows — GitHub disables them for forked repositories until they are enabled
+   on the Actions page. Dispatch the build manually instead:
+
+   ```sh
+   gh workflow run github_action_build.yml --ref master
+   gh run watch --exit-status   # the newest run
+   ```
+
+   A green run means both signing variants build in CI before a tag exists.
+4. **Tag and publish**: create the tag `v<versionName>` and the GitHub release,
+   then dispatch the release build for that tag:
+
+   ```sh
+   gh release create v<ver> --target master --title v<ver> --notes-file -  # notes on stdin
+   gh workflow run github_release_build.yml --ref master -f tag=<ver>
+   ```
+
+   `github_release_build.yml` builds both APKs and attaches them plus
+   `checksums-sha256.txt` to the release; it also runs on `release: published`
+   when workflow events are enabled. If it fails it deletes the release and the
+   tag again, so the tag is safe to retry.
+5. **Verify**: download the release APKs, check `checksums-sha256.txt`, install the
    emacs-signed APK next to the re-signed Termux and confirm session sharing works.
 ##
 

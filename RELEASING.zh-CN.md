@@ -41,12 +41,27 @@ alias/密码不用配：`app/build.gradle` 已默认取公开值（`emacs keysto
    - 同步 `README.md` 与 `README.zh-CN.md` 里的"最新版本"行。
 2. **提交**：沿用仓库的 conventional commit 风格
    （`feat(ui):`、`fix(lint):`、`build(signing):`……）推到 `master`。
-   普通 push 本身就会构建两个变体，等于发版前先验证一遍。
-3. **打 tag 发 release**：建 `v<versionName>` tag 并发布 GitHub release。
-   `github_release_build.yml` 监听 `release: published`，构建两个 APK 并连同
-   `checksums-sha256.txt` 上传到 release。workflow 失败时会自动删掉该 release
-   和 tag，可以放心重试。
-4. **验收**：下载 release 里的 APK，核对 `checksums-sha256.txt`，把 emacs 签名
+3. **构建与验证**：本 fork 上 push / release 事件不会触发 workflow
+   （GitHub 对 fork 仓库默认禁用，需在 Actions 页面手动启用）。手动触发构建：
+
+   ```sh
+   gh workflow run github_action_build.yml --ref master
+   gh run watch --exit-status   # 最新的 run
+   ```
+
+   变绿说明两个签名变体在 CI 里都能构建，此时再打 tag。
+4. **打 tag 发 release**：建 `v<versionName>` tag 并发布 GitHub release，
+   然后为该 tag 手动触发 release 构建：
+
+   ```sh
+   gh release create v<ver> --target master --title v<ver> --notes-file -  # 说明走 stdin
+   gh workflow run github_release_build.yml --ref master -f tag=<ver>
+   ```
+
+   `github_release_build.yml` 构建两个 APK 并连同 `checksums-sha256.txt`
+   上传到 release；workflow 事件启用后它也会监听 `release: published`。
+   workflow 失败时会自动删掉该 release 和 tag，可以放心重试。
+5. **验收**：下载 release 里的 APK，核对 `checksums-sha256.txt`，把 emacs 签名
    包装到重签名 Termux 旁边，确认会话共享正常。
 ##
 
