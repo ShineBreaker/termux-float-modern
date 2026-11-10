@@ -1,0 +1,316 @@
+name: Sync upstream
+
+# Merge upstream termux/termux-float master into this fork's master.
+# termux-float-modern is a modern rework (Material Design 3 UI, tmux session
+# sharing, zh-CN, dual signing, and its own release workflows) sitting on top
+# of upstream history. Later upstream commits are likely to touch the same
+# files. This job does a normal merge only:
+#   - already contained: skip
+#   - clean merge: translation check, then fast-forward push
+#   - conflict, failed check, or rejected push: fail and open an issue
+# It never force-pushes, resets, or auto-resolves. Either of those would
+# overwrite this fork's commits or drop upstream changes without review.
+
+on:
+  schedule:
+    # 18:00 UTC daily (02:00 Asia/Shanghai).
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: termux/termux-float
+  UPSTREAM_BRANCH: master
+  SYNC_LABEL: upstream-sync
+  GIT_TERMINAL_PROMPT: "0"
+  # Optional PAT (repo + workflow scopes). GITHUB_TOKEN cannot push a commit
+  # that edits .github/workflows/; when the secret is unset the token falls
+  # back to the workflow token.
+  GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
+jobs:
+  sync:
+    name: Merge upstream into master
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
+      - name: Fetch upstream
+        id: fetch
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP:-/tmp}"
+          if git remote get-url upstream >/dev/null 2>&1; then
+            git remote set-url upstream "https://github.com/${UPSTREAM_REPO}.git"
+          else
+            git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
+          fi
+          git fetch --no-tags upstream "${UPSTREAM_BRANCH}"
+          git rev-parse "upstream/${UPSTREAM_BRANCH}" | tee "$work/upstream-sha.txt"
+          git rev-parse HEAD | tee "$work/fork-sha.txt"
+          echo "upstream $(tr -d '[:space:]' < "$work/upstream-sha.txt")"
+          echo "fork     $(tr -d '[:space:]' < "$work/fork-sha.txt")"
+
+      - name: Merge upstream into master
+        id: merge
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP:-/tmp}"
+          upstream_ref="upstream/${UPSTREAM_BRANCH}"
+
+          if git merge-base --is-ancestor "$upstream_ref" HEAD; then
+            echo "Upstream ${UPSTREAM_REPO}@${UPSTREAM_BRANCH} is already contained in master. Nothing to do."
+            echo "status=uptodate" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Upstream commits not in master:"
+          git log --oneline HEAD.."$upstream_ref" | tee "$work/incoming-commits.txt"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          set +e
+          git merge --no-edit "$upstream_ref" >"$work/merge-output.txt" 2>&1
+          merge_status=$?
+          set -e
+          cat "$work/merge-output.txt"
+
+          if [ "$merge_status" -ne 0 ]; then
+            git diff --name-only --diff-filter=U > "$work/conflict-files.txt" || true
+            # Drop the in-progress merge so nothing conflicted can be pushed.
+            git merge --abort || true
+            echo "status=conflict" >> "$GITHUB_OUTPUT"
+            echo "::error::Merge failed. Fork commits were left unchanged and nothing was pushed."
+            exit 1
+          fi
+
+          echo "status=merged" >> "$GITHUB_OUTPUT"
+          if git diff --name-only ORIG_HEAD HEAD | grep -Eq '^\.github/workflows/'; then
+            echo "workflows_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "workflows_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check translations
+        id: verify
+        if: steps.merge.outputs.status == 'merged'
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP:-/tmp}"
+          set +e
+          python3 scripts/check-translations.py >"$work/verify.txt" 2>&1
+          verify_status=$?
+          set -e
+          cat "$work/verify.txt"
+          if [ "$verify_status" -ne 0 ]; then
+            echo "::error::Translation check failed after the merge. Not pushing."
+            exit "$verify_status"
+          fi
+
+      - name: Push merged master
+        id: push
+        if: success() && steps.merge.outputs.status == 'merged'
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP:-/tmp}"
+          branch="$(git rev-parse --abbrev-ref HEAD)"
+          if [ "$branch" != "master" ]; then
+            echo "::error::Refusing to push because HEAD is ${branch}, not master."
+            exit 1
+          fi
+          fork_sha="$(tr -d '[:space:]' < "$work/fork-sha.txt")"
+          if ! git merge-base --is-ancestor "$fork_sha" HEAD; then
+            echo "::error::HEAD no longer contains the previous master ${fork_sha}. Refusing to push."
+            exit 1
+          fi
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "::error::Worktree is dirty after merge. Refusing to push."
+            git status --short
+            exit 1
+          fi
+          # Refresh the remote tip. A non-fast-forward update must fail the
+          # job; never --force and never --force-with-lease.
+          git fetch --no-tags origin master
+          if ! git merge-base --is-ancestor origin/master HEAD; then
+            echo "::error::Push would not be a fast-forward of origin/master. Refusing."
+            exit 1
+          fi
+          set +e
+          git push origin HEAD:master >"$work/push-output.txt" 2>&1
+          push_status=$?
+          set -e
+          sed -E \
+            -e 's#(x-access-token:)[^@[:space:]]+#\1[REDACTED]#g' \
+            -e 's#ghs_[A-Za-z0-9_]+#ghs_[REDACTED]#g' \
+            -e 's#github_pat_[A-Za-z0-9_]+#github_pat_[REDACTED]#g' \
+            -e 's#ghp_[A-Za-z0-9_]+#ghp_[REDACTED]#g' \
+            "$work/push-output.txt"
+          if [ "$push_status" -ne 0 ]; then
+            echo "::error::Push rejected. origin/master was not updated."
+            exit "$push_status"
+          fi
+
+      - name: Report failure
+        if: failure()
+        env:
+          FETCH_OUTCOME: ${{ steps.fetch.outcome }}
+          MERGE_OUTCOME: ${{ steps.merge.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+          WORKFLOWS_CHANGED: ${{ steps.merge.outputs.workflows_changed }}
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP:-/tmp}"
+          repo="${GITHUB_REPOSITORY}"
+          run_url="${GITHUB_SERVER_URL}/${repo}/actions/runs/${GITHUB_RUN_ID}"
+          label="${SYNC_LABEL}"
+
+          read_file() {
+            if [ -f "$1" ]; then
+              cat "$1"
+            fi
+          }
+          redact() {
+            sed -E \
+              -e 's#(x-access-token:)[^@[:space:]]+#\1[REDACTED]#g' \
+              -e 's#ghs_[A-Za-z0-9_]+#ghs_[REDACTED]#g' \
+              -e 's#github_pat_[A-Za-z0-9_]+#github_pat_[REDACTED]#g' \
+              -e 's#ghp_[A-Za-z0-9_]+#ghp_[REDACTED]#g'
+          }
+
+          upstream_sha="$(read_file "$work/upstream-sha.txt" | tr -d '[:space:]')"
+          fork_sha="$(read_file "$work/fork-sha.txt" | tr -d '[:space:]')"
+          conflict_files="$(read_file "$work/conflict-files.txt")"
+          incoming="$(read_file "$work/incoming-commits.txt")"
+          verify_out="$(read_file "$work/verify.txt")"
+          merge_out="$(read_file "$work/merge-output.txt")"
+          push_out="$(read_file "$work/push-output.txt")"
+          [ -n "$upstream_sha" ] || upstream_sha="(unknown)"
+          [ -n "$fork_sha" ] || fork_sha="(unknown)"
+
+          body="$work/sync-issue.md"
+          {
+            echo "每日上游同步失败，**master 没有被改写**（没有 force-push，也没有用上游覆盖本 fork 的提交）。"
+            echo
+            echo "- 运行记录：${run_url}"
+            echo "- 上游：\`${UPSTREAM_REPO}\` 分支 \`${UPSTREAM_BRANCH}\`（\`${upstream_sha}\`）"
+            echo "- 本仓库合并前 HEAD：\`${fork_sha}\`"
+            echo "- 步骤结果：fetch=\`${FETCH_OUTCOME:-unknown}\`，merge=\`${MERGE_OUTCOME:-unknown}\`，verify=\`${VERIFY_OUTCOME:-unknown}\`，push=\`${PUSH_OUTCOME:-unknown}\`"
+            if [ "${WORKFLOWS_CHANGED:-false}" = "true" ]; then
+              echo "- 本次合并改动了 \`.github/workflows/\` 下的文件。"
+            fi
+            echo
+            echo "### 失败内容"
+            echo
+            if [ -n "$conflict_files" ]; then
+              echo "合并发生冲突。自动同步已中止，需要人工处理。冲突文件："
+              echo
+              echo '```'
+              printf '%s\n' "$conflict_files"
+              echo '```'
+              echo
+            elif [ "${MERGE_OUTCOME:-}" = "failure" ]; then
+              echo "合并失败，且没有未合并文件（例如拒绝合并无关历史）。\`git merge\` 输出："
+              echo
+              echo '```'
+              printf '%s\n' "$merge_out" | redact | head -n 40
+              echo '```'
+              echo
+            fi
+            if [ "${VERIFY_OUTCOME:-}" = "failure" ]; then
+              echo "合并没有冲突，但本 fork 的 \`scripts/check-translations.py\` 未通过，因此没有推送。上游若新增了 \`string\` / \`plurals\`，需要补上 \`values-zh-rCN\` 里的译文。"
+              echo
+              if [ -n "$verify_out" ]; then
+                echo '```'
+                printf '%s\n' "$verify_out" | head -n 80
+                echo '```'
+                echo
+              fi
+            fi
+            if [ "${PUSH_OUTCOME:-}" = "failure" ]; then
+              echo "合并已在 runner 上完成，但推送到 \`master\` 被拒绝，远程分支没有更新。"
+              echo
+              if [ -n "$push_out" ]; then
+                echo '```'
+                printf '%s\n' "$push_out" | redact | head -n 40
+                echo '```'
+                echo
+              fi
+            fi
+            if [ "${FETCH_OUTCOME:-}" = "failure" ]; then
+              echo "拉取上游失败（网络、仓库或分支不可用）。详见运行记录。"
+              echo
+            fi
+            if [ -n "$incoming" ]; then
+              echo "计划合入的上游提交："
+              echo
+              echo '```'
+              printf '%s\n' "$incoming" | head -n 30
+              echo '```'
+              echo
+            fi
+            echo "### \`.github/workflows/\` 与 \`UPSTREAM_SYNC_TOKEN\`"
+            echo
+            echo "默认的 \`GITHUB_TOKEN\` 不能推送修改了 \`.github/workflows/\` 的提交（GitHub 拒绝 workflow 用自带 token 修改 workflow 文件）。如果失败是这个原因，请在仓库 Secrets 里添加 \`UPSTREAM_SYNC_TOKEN\`：具有 **repo** 和 **workflow** 权限的 PAT（classic PAT 勾选 \`repo\` 与 \`workflow\`）。保存后重新运行本 workflow。没有该 secret 时，不改 workflow 文件的普通合并仍使用 \`GITHUB_TOKEN\` 推送。"
+            echo
+            echo "### 本地修复"
+            echo
+            echo "本 fork 是上游的 modern 重做。请手工合并并保留 fork 侧的改动，不要用上游版本整文件覆盖，也不要 force-push。需要保住的部分：Material Design 3 界面与 Android 12+ 动态取色、tmux 会话共享、简体中文、github / emacs 双签名，以及本 fork 自己的构建和发布 workflow。"
+            echo
+            echo '```bash'
+            echo "git fetch https://github.com/${UPSTREAM_REPO}.git ${UPSTREAM_BRANCH}"
+            echo "git checkout master"
+            echo "git merge FETCH_HEAD"
+            echo "# 解决冲突时保留本 fork 的改动，不要 force-push"
+            echo "python3 scripts/check-translations.py"
+            echo "git push origin master"
+            echo '```'
+            echo
+            echo "处理完后关闭本 issue。如果问题还在，下次同步会在这条 issue 下追加评论（含运行链接），而不会再开一条新的。"
+          } > "$body"
+
+          title="上游同步失败：${UPSTREAM_REPO}@${UPSTREAM_BRANCH} $(date -u +%F)"
+
+          gh label create "$label" --repo "$repo" \
+            --color B60205 \
+            --description "上游自动同步失败，需要人工处理" \
+            --force || true
+
+          existing=""
+          if ! existing="$(gh issue list --repo "$repo" --state open --label "$label" --limit 1 --json number --jq '.[0].number // empty')"; then
+            echo "::warning::按 label 查询已有 issue 失败，改为新建"
+            existing=""
+          fi
+
+          if [ -n "$existing" ]; then
+            echo "Commenting on existing issue #${existing}"
+            if ! gh issue comment "$existing" --repo "$repo" --body-file "$body"; then
+              echo "::error::无法评论已有 issue #${existing}"
+              exit 1
+            fi
+            exit 0
+          fi
+
+          if gh issue create --repo "$repo" --title "$title" --body-file "$body" --label "$label"; then
+            exit 0
+          fi
+
+          echo "::warning::带 label 创建 issue 失败，改为不带 label 重试"
+          if ! gh issue create --repo "$repo" --title "$title" --body-file "$body"; then
+            echo "::error::无法创建 issue。请确认仓库已开启 Issues，且 Actions 的 workflow 权限为 Read and write；或配置具有 repo 权限的 UPSTREAM_SYNC_TOKEN。"
+            exit 1
+          fi
